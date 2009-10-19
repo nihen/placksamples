@@ -122,7 +122,7 @@
             post_socket.write($.toJSON([new_chat_val]) + CRLF);
             post_socket.flush();
         }
-        setTimeout(checkinput, 0);
+        setTimeout(checkinput, 300);
     }
 </script>
 <link rel="stylesheet" href="/static/screen.css" />
@@ -163,6 +163,7 @@ Your email (for Gravatar): <input id="email" type="text" name="email" size="24"/
 
 <form id="form2" style="display: none;" onsubmit="return false">
 下のテキストエリアに文字をいれるとリアルタイムに送信します<br />
+IEだとちゃんとうごいていないげ<br />
 <textarea id="chat"></textarea>
 </form>
 
