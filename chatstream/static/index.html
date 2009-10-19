@@ -1,0 +1,175 @@
+<html>
+<head>
+<title>realtime Chat demo</title>
+<script src="/static/js/jquery-1.3.2.min.js"></script>
+<script src="/static/js/jquery.md5.js"></script>
+<script src="/static/js/jquery.cookie.js"></script>
+<script src="/static/js/jquery-tools-flashembed.js"></script>
+<script src="/static/js/json.js"></script>
+<script src="/static/js/jsocket.js"></script>
+<script>
+    var cookieName = 'tatsumaki_chat_email';
+    var email = '';
+    var connect_count = 0;
+    var is_login   = false;
+    var CRLF = "\x0D\x0A";
+    var post_socket;
+    var pull_socket;
+
+    $(function() {
+        JSocket.init('/static/JSocket.swf', swfloaded);
+
+        if ($.cookie(cookieName)) {
+            $('#email').attr('value', $.cookie(cookieName));
+        }
+    });
+
+    function swfloaded() {
+        post_socket = new JSocket({
+            connectHandler: postConnectHandler,
+            closeHandler: closeHandler,
+            errorHandler: errorHandler
+        });
+        post_socket.connect(location.hostname, location.port || 80);
+        pull_socket = new JSocket({
+            connectHandler: pullConnectHandler,
+            dataHandler: dataHandler,
+            closeHandler: closeHandler,
+            errorHandler: errorHandler
+        });
+        pull_socket.connect(location.hostname, location.port || 80);
+    }
+
+    function postConnectHandler() {
+        post_socket.write("POST /post HTTP/1.0" + CRLF);
+        post_socket.write(CRLF);
+        post_socket.flush();
+        connect_count = connect_count + 1;
+    }
+    function pullConnectHandler() {
+        pull_socket.write("GET /pull HTTP/1.0" + CRLF);
+        pull_socket.write(CRLF);
+        socket.flush();
+        connect_count = connect_count + 1;
+    }
+
+    var header_parsed = false;
+    var users = {};
+    function dataHandler(data) {
+        if ( !header_parsed ) {
+            if ( data.match(/\x0D\x0A\x0D\x0A(.*)?/m) ) {
+                header_parsed = true;
+                data = RegExp.$1;
+                if ( !data ) {
+                 return;   
+                }
+            }
+            return;
+        }
+        data = $.parseJSON(data);
+        if ( !users[data[0]] ) {
+            users[data[0]] = adduser(data[0]);
+        }
+        $('#' + users[data[0]] + ' .message').val(data[1]);
+    }
+    function adduser(mail) {
+        var md5 = $.md5(mail);
+        var avatar = "http://www.gravatar.com/avatar/" + md5;
+        var name   = mail || 'Anonymous';
+        var img = $('<img/>').attr('src', avatar).attr('alt', name).addClass('avatar');
+        $('#users').prepend(
+            $('<li class="user" id="' + md5 + '" />').prepend(img).append('<textarea readonly="readonly" class="message"/>')
+        );
+        return md5;
+    }
+
+    function closeHandler() {
+        //console.log('---close---');
+    }
+    function errorHandler(str) {
+       // console.log('---error---' + str);
+    }
+
+    var login_count = 0;
+    function login() {
+        email = $('#email').attr('value');
+        if ( !email ) {
+            alert('require email');
+            return;
+        }
+        if ( connect_count == 2 ) {
+            login_count = login_count + 1;
+            if ( login_count > 10 ) {
+                alert('なんかつながらないです');
+                return;
+            }
+            setTimeout(login, 1000);
+        }
+        post_socket.write(email + CRLF); 
+        post_socket.flush();
+        $('#form2').show();
+        $('#form1').hide();
+        is_login = true;
+        if (email) $.cookie(cookieName, email, { path: '/static/' });
+        checkinput();
+    }
+    var old_chat_val = '';
+    var count = 0;
+    function checkinput() {
+        var new_chat_val = $('#chat').attr('value');
+        if (new_chat_val != old_chat_val ) {
+            old_chat_val = new_chat_val;
+            post_socket.write($.toJSON([new_chat_val]) + CRLF);
+            post_socket.flush();
+        }
+        setTimeout(checkinput, 0);
+    }
+</script>
+<link rel="stylesheet" href="/static/screen.css" />
+<style>
+ul#messages {
+  list-style-type: none;
+  margin-top: 1em;
+}
+img.avatar {
+  width: 25px; height: 25px;
+  vertical-align: middle;
+  margin-right: 0.5em;
+}
+.message {
+  margin-top: 0.5em;
+}
+.meta {
+  color: #888;
+  font-size: 0.8em;
+}
+body {
+  margin: 1em 2em
+}
+textarea {
+    width: 500px;
+    height: 100px;
+}
+
+</style>
+</head>
+<body>
+<h1 class="chat-room-name">Chat room: <?= $channel ?></h1>
+<!-- move this input out of form so Firefox can submit with enter key :/ -->
+<form id="form1" onsubmit="return false">
+Your email (for Gravatar): <input id="email" type="text" name="email" size="24"/>
+<input type="button" value="ログイン" onclick="login()" />
+</form>
+
+<form id="form2" style="display: none;" onsubmit="return false">
+下のテキストエリアに文字をいれるとリアルタイムに送信します<br />
+<textarea id="chat"></textarea>
+</form>
+
+<ul id="users">
+</ul>
+
+<div id="footer">Powered by <a href="http://github.com/nihen/JSocket">JSocket</a> / <a href="http://github.com/miyagawa/Plack">Plack</a> / <a href="http://github.com/miyagawa/Plack-Server-Coro">Plack::Server::Coro</a>.</div>
+
+</body>
+</html>
