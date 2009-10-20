@@ -15,9 +15,11 @@
     var CRLF = "\x0D\x0A";
     var post_socket;
     var pull_socket;
+    var chatarea;
 
     $(function() {
         JSocket.init('/static/JSocket.swf', swfloaded);
+        chatarea = $('#chat');
 
         if ($.cookie(cookieName)) {
             $('#email').attr('value', $.cookie(cookieName));
@@ -42,19 +44,18 @@
 
     function postConnectHandler() {
         post_socket.write("POST /post HTTP/1.0" + CRLF);
-        post_socket.write(CRLF);
-        post_socket.flush();
-        connect_count = connect_count + 1;
+        post_socket.writeFlush(CRLF);
+        connect_count++;
     }
     function pullConnectHandler() {
         pull_socket.write("GET /pull HTTP/1.0" + CRLF);
-        pull_socket.write(CRLF);
-        socket.flush();
-        connect_count = connect_count + 1;
+        pull_socket.writeFlush(CRLF);
+        connect_count++;
     }
 
     var header_parsed = false;
     var users = {};
+    var last_user;
     function dataHandler(data) {
         if ( !header_parsed ) {
             if ( data.match(/\x0D\x0A\x0D\x0A(.*)?/m) ) {
@@ -64,18 +65,23 @@
                  return;   
                 }
             }
-            return;
+            else {
+                return;
+            }
         }
         var datas = data.split("\n");
         for ( var i = 0; i < datas.length; i++) {
             var chat = $.parseJSON(datas[i]);
-            if ( !users[chat[0]] ) {
-                users[chat[0]] = adduser(chat[0]);
+            var mail = chat[0];
+            if ( !users[mail] ) {
+                last_user = mail;
+                users[mail] = adduser(mail);
             }
-            else {
-                $('#' + users[chat[0]]).remove().prependTo('#users');
+            else if ( last_user != mail ) {
+                last_user = mail;
+                $('#'.concat(users[mail])).remove().prependTo('#users');
             }
-            $('#' + users[chat[0]] + ' .message').val(chat[1]);
+            $('#m_'.concat(users[mail])).get(0).value = chat[1];
         }
     }
     function adduser(mail) {
@@ -84,7 +90,7 @@
         var name   = mail || 'Anonymous';
         var img = $('<img/>').attr('src', avatar).attr('alt', name).addClass('avatar');
         $('#users').prepend(
-            $('<li class="user" id="' + md5 + '" />').prepend(img).append('<textarea readonly="readonly" class="message"/>')
+            $('<li class="user" id="' + md5 + '" />').prepend(img).append('<textarea readonly="readonly" id="m_'+ md5 +'"/>')
         );
         return md5;
     }
@@ -103,16 +109,16 @@
             alert('require email');
             return;
         }
-        if ( connect_count == 2 ) {
+        if ( connect_count != 2 ) {
             login_count = login_count + 1;
             if ( login_count > 10 ) {
                 alert('なんかつながらないです');
                 return;
             }
             setTimeout(login, 1000);
+            return;
         }
-        post_socket.write(email + CRLF); 
-        post_socket.flush();
+        post_socket.writeFlush(email.concat(CRLF));
         $('#form2').show();
         $('#form1').hide();
         is_login = true;
@@ -122,11 +128,10 @@
     var old_chat_val = '';
     var count = 0;
     function checkinput() {
-        var new_chat_val = $('#chat').attr('value');
+        var new_chat_val = chatarea.attr('value');
         if (new_chat_val != old_chat_val ) {
             old_chat_val = new_chat_val;
-            post_socket.write($.toJSON([new_chat_val]) + CRLF);
-            post_socket.flush();
+            post_socket.writeFlush($.toJSON([new_chat_val]).concat(CRLF));
         }
         setTimeout(checkinput, 0);
     }
@@ -168,8 +173,7 @@ Your email (for Gravatar): <input id="email" type="text" name="email" size="24"/
 </form>
 
 <form id="form2" style="display: none;" onsubmit="return false">
-下のテキストエリアに文字をいれるとリアルタイムに送信します<br />
-IEだとちゃんとうごいていないげ。 いたづらはいやづら。。。（；；<br />
+下のテキストエリアに文字をいれるとリアルタイムに送信します。いたづらはいやづら。。。（；；<br />
 <textarea id="chat"></textarea>
 </form>
 
