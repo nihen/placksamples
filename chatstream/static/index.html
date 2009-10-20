@@ -66,11 +66,17 @@
             }
             return;
         }
-        data = $.parseJSON(data);
-        if ( !users[data[0]] ) {
-            users[data[0]] = adduser(data[0]);
+        var datas = data.split("\n");
+        for ( var i = 0; i < datas.length; i++) {
+            var chat = $.parseJSON(datas[i]);
+            if ( !users[chat[0]] ) {
+                users[chat[0]] = adduser(chat[0]);
+            }
+            else {
+                $('#' + users[chat[0]]).remove().prependTo('#users');
+            }
+            $('#' + users[chat[0]] + ' .message').val(chat[1]);
         }
-        $('#' + users[data[0]] + ' .message').val(data[1]);
     }
     function adduser(mail) {
         var md5 = $.md5(mail);
@@ -163,7 +169,7 @@ Your email (for Gravatar): <input id="email" type="text" name="email" size="24"/
 
 <form id="form2" style="display: none;" onsubmit="return false">
 下のテキストエリアに文字をいれるとリアルタイムに送信します<br />
-IEだとちゃんとうごいていないげ<br />
+IEだとちゃんとうごいていないげ。 いたづらはいやづら。。。（；；<br />
 <textarea id="chat"></textarea>
 </form>
 
